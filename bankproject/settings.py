@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'users',
     'accounts',
-    'home'
+    'home',
+    'user_accounts'
 ]
 
 MIDDLEWARE = [
@@ -123,3 +124,21 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+# DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# # =========================
+# # EMAIL CONFIGURATION
+# # =========================
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = 'ubctrainings@gmail.com'
+EMAIL_HOST_PASSWORD = 'zjih unpt yqtm zbru'
+
+EMAIL_TIMEOUT = 10
+DEFAULT_FROM_EMAIL = 'ubctrainings@gmail.com'
+
