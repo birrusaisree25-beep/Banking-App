@@ -94,7 +94,7 @@ def verify_otp(request):
             print("validated user")
             request.session["user_name"] = user.first_name            
             request.session["user_email"] = user.email
-            messages.success(request,"login success")
+            messages.success(request,"login successfull")
             return redirect("/")
         except EmailOtp.Exception:
             messages.error(request, "invalid otp")
