@@ -1,7 +1,10 @@
-from django.shortcuts import render
-from .models import UserAccounts
+from django.shortcuts import render,redirect
+from user_accounts.models import UserAccounts, EmailOtp
 from django.core.mail import send_mail
 from django.conf import settings
+from django.contrib.auth import authenticate,login 
+from django.contrib import messages
+import random
 
 # Create your views here.
 
@@ -10,105 +13,90 @@ def signup(request):
         fname = request.POST.get("fname")
         lname = request.POST.get("lname")
         email = request.POST.get("email")
-        #print(email)
         password = request.POST.get("psw")
         confirm_password = request.POST.get("psw-repeat")
-        print(fname, lname, email,password,confirm_password)
+        print(fname,lname,email,password,confirm_password)
 
         if password != confirm_password:
-            return render(request,'user_accounts/signup.html', {
-                "error":"Password and Confirm Password do not match"
+            return render(request,'user_accounts/signup.html',{
+                "error":"Password and Confirm password do not match"
             })
-        
+
         if UserAccounts.objects.filter(email=email).exists():
-               return render(request,'user_accounts/signup.html', {
+            return render(request,'user_accounts/signup.html',{
                 "error":"User with this email already exists"
             })
-        
+
+
         UserAccounts.objects.create(
             first_name = fname,
             last_name = lname,
             email = email,
-            password = password
-         )
+            password = password,
 
+        )
 
         send_mail(
-             subject = "Welcome to my Bank",
-             message = f"Hi {fname}, welcome to my bank. your username setup is successfull",
-             from_email = settings.DEFAULT_FROM_EMAIL,
-             recipient_list = {email}
-            )
-
+            subject = "Welcome to My Bank",
+            message= f"Hi {fname}, welcome to my bank. your username setup is successfull",
+            from_email = settings.DEFAULT_FROM_EMAIL,
+            recipient_list= {email}
+        )
         return render(request,'user_accounts/signin.html')
     return render(request,'user_accounts/signup.html')
 
-def signin(request):
-    message = None
-    if request.method == "POST":
-        username = request.POST.get("uname")
-        password = request.POST.get("psw")
-        print(username,password)
-
-        
-        try:
-            user = UserAccounts.objects.get(email=username, password=password)
-
-            # ✅ Success message
-            message = f"Hey Login successful! Welcome back."
-            print("Login successful")
-
-        except UserAccounts.DoesNotExist:
-            message = f"Invalid email or password"
-            print(" login failed")
-
-    return render(request,'user_accounts/signin.html', {
-        'message':message
-    })
-
-def forgot_password(request):
-    message="" 
-
+def login_user(request):
     if request.method == "POST":
         email = request.POST.get("email")
+        password = request.POST.get("password")
 
         try:
             user = UserAccounts.objects.get(email=email)
-            send_mail(
-                subject = 'Password Reset Request',
-                message = 'Click this link to reset your password: http://127.0.0.1:8000/user_accounts/reset-password/',
-                from_email = settings.DEFAULT_FROM_EMAIL,
-                recipient_list = {email},
-                fail_silently=False,
-                # settings.EMAIL_HOST_USER,
-            )
-            message = "Password reset link sent to your email."
+            request.session["user_name"] = user.first_name
+            if user.password == password:
+                otp = str(random.randint(100000,999999))
+                EmailOtp.objects.create(email=email,otp=otp)
 
+                send_mail(
+                    subject = "Login Code",
+                    message= f"Hi {request.session["user_name"]} , Login code for My Bank app is \n {otp}",
+                    from_email = settings.DEFAULT_FROM_EMAIL,
+                    recipient_list= {email}
+                )       
+                request.session["otp_email"] = user.email
+                messages.success(request,"otp sent successfully")
+                return redirect('otp')
         except UserAccounts.DoesNotExist:
-            message = "Email not found."
+            messages.error(request, "User does not exist")
 
-    return render(request, 'user_accounts/forgot_password.html',{
-        'message':message
-    })    
-          
-def reset_password(request):
-    message = ""
-    error = ""
+    return render(request, "user_accounts/signin.html")
 
+def verify_otp(request):
     if request.method == "POST":
-        new_password = request.POST.get("new_password")
-        confirm_password = request.POST.get("confirm_password")
+        otp = request.POST.get("otp")
+        print(otp)
+        email = request.session.get("otp_email")
+        print(email)
+        try:
+            res = EmailOtp.objects.filter(
+                email=email,
+                otp = otp,
+                is_verified=False
+            ).latest("created_at")
 
-        if new_password != confirm_password:
-            error = "Passwords do not match"
-        elif not new_password:
-            error = "Password cannot be empty"
-        else:
-            # Example: assuming user is logged in and we use request.user
-            message = "Password reset successful"
-            return render(request, "user_accounts/reset_password.html", {"message": message})
+            if res.is_expired():
+                messages.error(request,"otp timedout")
+                return redirect('signin')
+            res.is_verified = True
+            res.save()
 
-    return render(request, "user_accounts/reset_password.html", {"error": error})
-
-          
-         
+            user = UserAccounts.objects.get(email=email)
+            print("validated user")
+            request.session["user_name"] = user.first_name            
+            request.session["user_email"] = user.email
+            messages.success(request,"login success")
+            return redirect("/")
+        except EmailOtp.Exception:
+            messages.error(request, "invalid otp")
+    return render(request, "user_accounts/otp.html")
+        
