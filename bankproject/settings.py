@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-b5gk&sbuzv9)k55dy+o#7#*%!+dl!#2hwhc#yjq3yh3@ds6qxq
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['https://banking-app-104228485792.europe-west1.run.app/']
 
 
 
